@@ -1,13 +1,16 @@
-import plotly.express as px
-from shiny import App, ui, render, reactive
-from shinywidgets import output_widget, render_widget
+# Imports
+from shiny.express import input
+from shiny import reactive, App, ui, render
+from shinywidgets import output_widget, render_widget, render_plotly
+import pandas as pd
 import seaborn as sns
+import plotly.express as px
 import matplotlib.pyplot as plt
-from palmerpenguins import load_penguins
 
-penguins_df = load_penguins()
+# Load data 
+iris = sns.load_dataset("iris")
 
-# Define UI
+# UI Layout
 app_ui = ui.page_fluid(
     ui.layout_sidebar(
         ui.sidebar(
@@ -15,7 +18,7 @@ app_ui = ui.page_fluid(
             ui.input_selectize(
                 "selected_attribute",
                 "Choose a column:",
-                ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"]
+                ["sepal_length", "sepal_width", "petal_length", "petal_width", "species"]
             ),
             ui.input_numeric(
                 "plotly_bin_count",
@@ -31,15 +34,15 @@ app_ui = ui.page_fluid(
             ),
             ui.input_checkbox_group(
                 "selected_species_list",
-                "Selected Species List",
-                ["Adelie", "Gentoo", "Chinstrap"],
-                selected=["Adelie", "Gentoo", "Chinstrap"],
+                "Selected Bin List",
+                ["Setosa", "Versicolor", "Virginica"],
+                selected=["Setosa", "Versicolor", "Virginica"],
                 inline=True
             ),
             ui.hr(),
             ui.a(
                 "GitHub",
-                href="https://github.com/tmartin-m/cintel-02-data/blob/main/app.py",
+                href="",
                 target="_blank"
             )
         ),
@@ -49,7 +52,7 @@ app_ui = ui.page_fluid(
         ),
         ui.layout_columns(
             output_widget("plotly_histogram"),
-            ui.output_plot("seaborn_hist"),
+            ui.output_plot("seaborn_hist"),  
         ),
         ui.card(
             ui.card_header("Plotly Scatterplot: Species"),
@@ -62,33 +65,21 @@ app_ui = ui.page_fluid(
 # Define Server
 def server(input, output, session):
 
-    # --------------------------------------------------------
-    # Reactive calculation to filter the data
-    # --------------------------------------------------------
-
-    @reactive.calc
-    def filtered_data():
-        # Drop rows with NA in the selected attribute
-        df = penguins_df.dropna(subset=[input.selected_attribute()])
-        # Filter by species selected
-        df = df[df["species"].isin(input.selected_species_list())]
-        return df
-
     @output
     @render.data_frame
     def penguin_data_table():
-        return render.DataTable(filtered_data())
+        return render.DataTable(penguins_df, filters=True)
 
     @output
     @render.data_frame
     def penguin_data_grid():
-        return render.DataGrid(filtered_data())
+        return render.DataGrid(penguins_df, filters=True)
 
     @output
     @render_widget
     def plotly_histogram():
         fig = px.histogram(
-            data_frame=filtered_data(),
+            penguins_df,
             x=input.selected_attribute(),
             color="species",
             barmode="overlay",
@@ -101,23 +92,24 @@ def server(input, output, session):
     @render.plot
     def seaborn_hist():
         plt.figure(figsize=(8, 4))
+        df = penguins_df.dropna(subset=["body_mass_g", "species"])
         sns.histplot(
-            data=filtered_data(),
-            x=input.selected_attribute(),
-            hue="species",
-            multiple="layer",
+            data=df, 
+            x="body_mass_g", 
+            hue="species", 
+            multiple="layer", 
             bins=input.seaborn_bin_count()
         )
-        plt.title(f"Seaborn Histogram of {input.selected_attribute()} by Species")
-        plt.xlabel(input.selected_attribute())
+        plt.title("Seaborn Histogram of Body Mass by Species")
+        plt.xlabel("Body Mass (g)")
         plt.ylabel("Count")
         return plt.gcf()
-
+        
     @output
     @render_widget
     def plotly_scatterplot():
         fig = px.scatter(
-            penguins_df.dropna(subset=["flipper_length_mm", "body_mass_g"]),
+            penguins_df,
             x="flipper_length_mm",
             y="body_mass_g",
             color="species",
