@@ -1,7 +1,6 @@
 # Imports
 from shiny import reactive, App, ui, render
 from shinywidgets import output_widget, render_widget, render_plotly
-import pandas as pd
 import seaborn as sns
 import plotly.express as px
 import matplotlib.pyplot as plt
@@ -46,8 +45,8 @@ app_ui = ui.page_fluid(
             )
         ),
         ui.layout_columns(
-            ui.output_data_frame("penguin_data_table"),
-            ui.output_data_frame("penguin_data_grid")
+            ui.output_data_frame("iris_data_table"),
+            ui.output_data_frame("iris_data_grid")
         ),
         ui.layout_columns(
             output_widget("plotly_histogram"),
@@ -64,21 +63,29 @@ app_ui = ui.page_fluid(
 # Define Server
 def server(input, output, session):
 
-    @output
-    @render.data_frame
-    def penguin_data_table():
-        return render.DataTable(iris, filters=True)
+    @reactive.calc
+    def filtered_data():
+        # Drop rows with NA in the selected attribute
+        df = iris.dropna(subset=[input.selected_attribute()])
+        # Filter by species selected
+        df = df[df["species"].str.capitalize().isin(input.selected_species_list())]
+        return df  
 
     @output
     @render.data_frame
-    def penguin_data_grid():
-        return render.DataGrid(iris, filters=True)
+    def iris_data_table():
+        return render.DataTable(filtered_data(), filters=True)
+
+    @output
+    @render.data_frame
+    def iris_data_grid():
+        return render.DataGrid(filtered_data(), filters=True)
 
     @output
     @render_widget
     def plotly_histogram():
         fig = px.histogram(
-            iris,
+            filtered_data(),
             x=input.selected_attribute(),
             color="species",
             barmode="overlay",
@@ -92,7 +99,7 @@ def server(input, output, session):
     def seaborn_hist():
         plt.figure(figsize=(8, 4))
         sns.histplot(
-            data=iris,
+            data=filtered_data(),
             x=input.selected_attribute(),
             hue="species",
             multiple="layer",
@@ -107,14 +114,13 @@ def server(input, output, session):
     @render_widget
     def plotly_scatterplot():
         fig = px.scatter(
-            iris,
+            filtered_data(),
             x="sepal_length",
             y="sepal_width",
             color="species",
             title="Scatterplot: Sepal Length vs Sepal Width"
         )
         return fig
-
 
 # Launch the app
 app = App(app_ui, server)
