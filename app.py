@@ -1,5 +1,4 @@
 # Imports
-from shiny.express import input
 from shiny import reactive, App, ui, render
 from shinywidgets import output_widget, render_widget, render_plotly
 import pandas as pd
@@ -68,18 +67,18 @@ def server(input, output, session):
     @output
     @render.data_frame
     def penguin_data_table():
-        return render.DataTable(penguins_df, filters=True)
+        return render.DataTable(iris, filters=True)
 
     @output
     @render.data_frame
     def penguin_data_grid():
-        return render.DataGrid(penguins_df, filters=True)
+        return render.DataGrid(iris, filters=True)
 
     @output
     @render_widget
     def plotly_histogram():
         fig = px.histogram(
-            penguins_df,
+            iris,
             x=input.selected_attribute(),
             color="species",
             barmode="overlay",
@@ -92,30 +91,30 @@ def server(input, output, session):
     @render.plot
     def seaborn_hist():
         plt.figure(figsize=(8, 4))
-        df = penguins_df.dropna(subset=["body_mass_g", "species"])
         sns.histplot(
-            data=df, 
-            x="body_mass_g", 
-            hue="species", 
-            multiple="layer", 
+            data=iris,
+            x=input.selected_attribute(),
+            hue="species",
+            multiple="layer",
             bins=input.seaborn_bin_count()
         )
-        plt.title("Seaborn Histogram of Body Mass by Species")
-        plt.xlabel("Body Mass (g)")
+        plt.title(f"Seaborn Histogram of {input.selected_attribute()} by Species")
+        plt.xlabel(input.selected_attribute())
         plt.ylabel("Count")
         return plt.gcf()
-        
+
     @output
     @render_widget
     def plotly_scatterplot():
         fig = px.scatter(
-            penguins_df,
-            x="flipper_length_mm",
-            y="body_mass_g",
+            iris,
+            x="sepal_length",
+            y="sepal_width",
             color="species",
-            title="Scatterplot: Flipper Length vs Body Mass"
+            title="Scatterplot: Sepal Length vs Sepal Width"
         )
         return fig
+
 
 # Launch the app
 app = App(app_ui, server)
